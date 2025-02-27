@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GlobalChat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.1/stomp.min.js"></script>
+
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center">Real-Time Chat Application</h1>
+        <div class="border rounded p-3 mb-3" id="chat" style="height: 200px; overflow-y: auto;">
+
+        </div>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Your Name..." id="senderInput">
+        </div>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Your Message..." id="messageInput">
+            <div id="input-group-append">
+                <button type="button" class="btn btn-primary" id="sendMessage">Send</button>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    function setConnected(connected) {
+        document.getElementById('sendMessage').disabled = !connected;
+    }
+    let stompClient = null;
+    function connect() {
+        let socket = new SockJS('/chat');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function(frame) {
+                setConnected(true);
+                //Subscribe
+                stompClient.subscribe('/topic/messages', function(message) {
+                    showMessage(JSON.parse(message.body));
+                });
+            });
+        }
+
+        function showMessage(message) {
+            let chat = document.getElementById('chat');
+            let messageElement = document.createElement('div');
+            messageElement.textContent = message.sender + ': ' + message.content;
+            messageElement.className = 'border-bottom mb-1';
+            chat.appendChild(messageElement);
+            chat.scrollTop = chat.scrollHeight;
+        }
+    function sendMessage() {
+        let sender = document.getElementById('senderInput').value.trim();
+        let content = document.getElementById('messageInput').value.trim();
+
+        if (!sender || !content) {
+            alert("Both name and message are required!");
+            return;
+        }
+
+        let chatMessage = { sender: sender, content: content };
+
+        if (stompClient && stompClient.connected) {
+            stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage)); // Added empty headers {}
+            console.log("Sent message:", chatMessage);  // Debug log
+        } else {
+            console.error("Not connected to WebSocket!");
+        }
+
+        document.getElementById('messageInput').value = '';
+    }
+    document.getElementById('sendMessage').onclick = sendMessage;
+    window.onload = connect;
+</script>
+</html>
